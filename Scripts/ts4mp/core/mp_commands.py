@@ -7,10 +7,11 @@ import sims4.commands
 from protocolbuffers.FileSerialization_pb2 import ZoneObjectData
 from server.account import Account
 from world.travel_service import travel_sim_to_zone
-
+import sys
 from ts4mp.debug.log import ts4mp_log
-from ts4mp.core.mp_essential import outgoing_commands, outgoing_lock, File, get_file_matching_name
-
+from ts4mp.core.mp_sync import outgoing_commands, outgoing_lock, ArbritraryFileMessage, get_file_matching_name
+import game_services
+import zone
 
 @sims4.commands.Command('get_con', command_type=sims4.commands.CommandType.Live)
 def get_con(_connection=None):
@@ -30,19 +31,26 @@ def get_clients(_connection=None):
     for client in clients:
         output(str(client.id))
 
+@sims4.commands.Command('get_cds', command_type=sims4.commands.CommandType.Live)
+def get_cds(_connection=None):
+    output = sims4.commands.CheatOutput(_connection)
+    try:
+        # Gets all the current client connections
+        clients = distributor.system._distributor_instance.client_distributors
+
+        for client in clients:
+            output(str(client))
+    except Exception as e:
+        output(str(e))
+
 
 @sims4.commands.Command('add_client_sims', command_type=sims4.commands.CommandType.Live)
 def add_client_sims(_connection=None):
     output = sims4.commands.CheatOutput(_connection)
 
-    # Add the first client's selectable sims to the new client's. Only expecst one multiplayer client at the moment.
+    # Add the first client's selectable sims to the new client's. Only expects one multiplayer client at the moment.
     client = services.client_manager().get(1000)
     first_client = services.client_manager().get_first_client()
-
-    for sim in client._selectable_sims:
-        output(str(sim))
-
-    output(str(len(client._selectable_sims)))
 
     for sim_info in first_client._selectable_sims:
         client._selectable_sims.add_selectable_sim_info(sim_info)
@@ -50,22 +58,6 @@ def add_client_sims(_connection=None):
     client.set_next_sim()
 
 
-@sims4.commands.Command('cnc', command_type=sims4.commands.CommandType.Live)
-def cnc(_connection=None):
-    output = sims4.commands.CheatOutput(_connection)
-
-    # Create a new client. Deprecated.
-    client = services.client_manager().get_first_client()
-    account = Account(865431, "Jon Snow")
-
-    new_client = services.client_manager().create_client(1000, account, client._household_id)
-    new_client.clear_selectable_sims()
-
-    for sim_info in client._selectable_sims:
-        new_client._selectable_sims.add_selectable_sim_info(sim_info)
-        new_client.set_next_sim()
-
-    output("Adding client")
 
 
 @sims4.commands.Command('rem', command_type=sims4.commands.CommandType.Live)
@@ -141,14 +133,38 @@ def send_lot_architecture_and_reload(_connection=None):
     if file_path is not None:
         with outgoing_lock:
             ts4mp_log("zone_id", "{}, {}".format(file_path, file_name))
-            msg = File(name, open(file_path, "rb").read())
+            msg = ArbritraryFileMessage(name, open(file_path, "rb").read())
             outgoing_commands.append(msg)
 
 
 @sims4.commands.Command('change_persona', command_type=sims4.commands.CommandType.Live)
-def change_persona(_connection=None):
+def change_persona(name: str, _connection=None):
     output = sims4.commands.CheatOutput(_connection)
     client = services.client_manager().get_first_client()
 
-    client._account._persona_name = "Corrin"
-    output(client._account._persona_name)
+    client._account._persona_name = name
+    output("Your new persona name is: {}".format(client._account._persona_name))
+
+
+@sims4.commands.Command('change_client_persona', command_type=sims4.commands.CommandType.Live)
+def change_client_persona(name: str, _connection=None):
+    output = sims4.commands.CheatOutput(_connection)
+    client = services.client_manager().get_client_by_account(1000)
+    if client is None:
+        output("That's odd, there's no multiplayer client, even though it should be always on.")
+        return
+
+    client._account._persona_name = name
+    output("The client's new persona name is: {}".format(client._account._persona_name))
+
+from situations.base_situation import BaseSituation
+@sims4.commands.Command('debug_objects_in_view', command_type=sims4.commands.CommandType.Live)
+def get_objects_in_view_gen(_connection=None):
+    all_objs = []
+    for manager in services.client_object_managers():
+        for obj in manager.get_all():
+            #if issubclass(type(obj), BaseSituation):
+                all_objs.append(type(obj))
+    ts4mp_log("objs in view", str(all_objs))
+
+

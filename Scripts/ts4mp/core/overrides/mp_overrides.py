@@ -8,6 +8,8 @@ import server.client
 import server.clientmanager
 import services
 import ui.ui_dialog
+
+
 from clock import GameSpeedChangeSource
 from distributor.ops import GenericProtocolBufferOp
 from distributor.rollback import ProtocolBufferRollback
@@ -18,7 +20,6 @@ from protocolbuffers.DistributorOps_pb2 import Operation
 
 from ts4mp.core.overrides import system_distributor
 from ts4mp.debug.log import ts4mp_log
-from ts4mp.core.mp import is_client
 
 
 def get_first_client(self):
@@ -51,12 +52,13 @@ def on_add(self):
     # We override the on_add function of the clients so we can add the stand-in client at the same time. Only supports  one
     # multiplayer client at the moment, which has the id of 1000.
     if self.id != 1000:
-        account = server.account.Account(865431, "Hiya2527")
-        new_client = services.client_manager().create_client(1000, account, 0)
+        #this block of code is triggered to create another client if this client is a "real" client
 
-    for sim_info in self._selectable_sims:
-        new_client._selectable_sims.add_selectable_sim_info(sim_info)
-        new_client.set_next_sim()
+        account = server.account.Account(865431, "Elder Price")
+        new_client = services.client_manager().create_client(1000, account, 0)
+        for sim_info in self._selectable_sims:
+            new_client._selectable_sims.add_selectable_sim_info(sim_info)
+            new_client.set_next_sim()
 
     if self._account is not None:
         self._account.register_client(self)
@@ -98,7 +100,8 @@ def on_remove(self):
         client = client_manager.get(1000)
         client_manager.remove(client)
 
-
+import sims4.log
+logger = sims4.log.Logger('Client')
 def send_selectable_sims_update(self):
     msg = Sims_pb2.UpdateSelectableSims()
 
@@ -106,8 +109,11 @@ def send_selectable_sims_update(self):
         with ProtocolBufferRollback(msg.sims) as new_sim:
             new_sim.id = sim_info.sim_id
             career = sim_info.career_tracker.get_currently_at_work_career()
-
-            new_sim.at_work = career is not None and not career.is_at_active_event
+            if sim_info.career_tracker is None:
+                logger.error('CareerTracker is None for selectable Sim {}'.format(sim_info))
+            else:
+                career = sim_info.career_tracker.get_currently_at_work_career()
+                new_sim.at_work = career is not None and not career.is_at_active_event
             new_sim.is_selectable = sim_info.is_enabled_in_skewer
             (selector_visual_type, career_category) = self._get_selector_visual_type(sim_info)
             new_sim.selector_visual_type = selector_visual_type
@@ -126,7 +132,7 @@ def send_selectable_sims_update(self):
 
                 if zone_data_proto is not None:
                     new_sim.instance_info.zone_name = zone_data_proto.name
-
+    ts4mp_log("debugging", "client id is: {}".format(self.id))
     distributor_instance = Distributor.instance().get_client(self.id)
     distributor_instance.add_op_with_no_owner(GenericProtocolBufferOp(Operation.SELECTABLE_SIMS_UPDATE, msg))
 
@@ -150,12 +156,28 @@ def push_speed(self, speed, source=GameSpeedChangeSource.GAMEPLAY, validity_chec
 
     return None
 
+from graph_algos import topological_sort
+import distributor.system
+import objects.base_object
+from situations.base_situation import  BaseSituation
+def _add_ops_for_client_connect(self, client):
+    ts4mp_log("client distributors", str(client.id), force=True)
+    node_gen = client.get_objects_in_view_gen()
+    parents_gen_fn = lambda obj: obj.get_create_after_objs()
+    create_order = topological_sort(node_gen, parents_gen_fn)
+    for obj in create_order:
+        if not getattr(obj, 'visible_to_client', True):
+            ts4mp_log("visible_to_client", "{} is not visible to client.".format(obj))
+            continue
+        create_op = obj.get_create_op()
+        if create_op is not None:
+            self.journal.add(obj, create_op)
 
-# TODO: Consider making a getter for the 'is_client' variable
-if not is_client:
-    server.clientmanager.ClientManager.get_first_client = get_first_client
-    server.clientmanager.ClientManager.get_first_client_id = get_first_client_id
 
+from ts4mp.configs.server_config import MULTIPLAYER_MOD_ENABLED
+
+if MULTIPLAYER_MOD_ENABLED:
+    distributor.system.Distributor._add_ops_for_client_connect =_add_ops_for_client_connect
     distributor.distributor_service.DistributorService.start = start
     server.client.Client.on_add = on_add
     server.client.Client.on_remove = on_remove
@@ -163,4 +185,17 @@ if not is_client:
     server.client.Client.send_selectable_sims_update = send_selectable_sims_update
     ui.ui_dialog.UiDialogBase.distribute_dialog = distribute_dialog
     clock.GameClock.push_speed = push_speed
-    # ui.ui_dialog_service.UiDialogueService.dialog_show = dialog_show
+
+    server.clientmanager.ClientManager.get_first_client = get_first_client
+    server.clientmanager.ClientManager.get_first_client_id = get_first_client_id
+
+
+def override_functions_depending_on_client_or_not(is_client):
+    return
+
+
+
+
+
+# ui.ui_dialog_service.UiDialogueService.dialog_show = dialog_show
+

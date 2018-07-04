@@ -11,11 +11,11 @@ def generic_send_loop(data, socket):
 
     socket.sendall(length)
     socket.sendall(data)
+    #ts4mp_log("send", "Sending {} bytes of data".format(sys.getsizeof(data)))
 
 
 def generic_listen_loop(socket, data, size):
     new_command = None
-    # ts4mp_log_debug("receive", "{}, {} \n".format(size, sys.getsizeof(data)))
     if size is None:
         size = socket.recv(8)
         (size,) = unpack('>Q', size)
@@ -25,13 +25,12 @@ def generic_listen_loop(socket, data, size):
         new_data = socket.recv(bytes_to_receive)
         data += new_data
     elif size == sys.getsizeof(data):
-        data = pickle.loads(data)
+        #ts4mp_log("receive", "Received new command with {} bytes of data".format(sys.getsizeof(data)))
 
-        ts4mp_log("locks", "acquiring incoming lock")
+        data = pickle.loads(data)
 
         new_command = data
 
-        ts4mp_log("locks", "releasing incoming lock")
 
         size = None
         data = b''
