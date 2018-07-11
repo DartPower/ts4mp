@@ -58,8 +58,6 @@ def _do_command(command_name, *args):
     else:
         ts4mp_log("commands", "There is no such command named: {}!".format(command_name))
 
-
-# TODO: Less generic names
 class ProtocolBufferMessage:
     def __init__(self, msg_id, msg):
         self.msg_id = msg_id
@@ -99,7 +97,6 @@ time_since_last_update = time.time()
 
 # TODO: Any kind of documentation for any of this so it's easier to understand in a year?
 def client_sync():
-    ts4mp_log("locks", "acquiring incoming lock")
     global time_since_last_update
 
     should_update = time.time() - time_since_last_update > 0.1
@@ -107,7 +104,6 @@ def client_sync():
         time_since_last_update = time.time()
     else:
         return
-    ts4mp_log("simulate", "Syncing client.")
 
     with incoming_lock:
         global incoming_commands
@@ -122,7 +118,6 @@ def client_sync():
                 return
         else:
             return
-        ts4mp_log("simulate", "Sending {} commands.".format(len(incoming_commands)), force=False)
         for unpacked_msg_data in incoming_commands:
             if isinstance(unpacked_msg_data, ProtocolBufferMessage):
                 omega.send(client.id, unpacked_msg_data.msg_id, unpacked_msg_data.msg)
@@ -140,11 +135,9 @@ def client_sync():
 
                 incoming_commands.remove(unpacked_msg_data)
 
-    ts4mp_log("locks", "releasing incoming lock")
 
 
 def server_sync():
-    ts4mp_log("locks", "acquiring incoming lock")
 
     with incoming_lock:
         global incoming_commands
@@ -176,7 +169,6 @@ def server_sync():
 
             attempt_command(command, stripped_function_name, function_to_execute, incoming_commands, parsed_args)
 
-    ts4mp_log("locks", "releasing incoming lock")
 
 
 def format_command_to_execute(function_name, parsed_args):

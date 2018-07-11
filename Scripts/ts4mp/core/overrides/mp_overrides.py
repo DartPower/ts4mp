@@ -140,7 +140,6 @@ def send_selectable_sims_update(self):
 def distribute_dialog(self, dialog_type, dialog_msg, immediate=False):
     distributor_instance = Distributor.instance()
     distributor_to_send_to = distributor_instance.get_distributor_with_active_sim_matching_sim_id(dialog_msg.owner_id)
-    # distributor.add_event(dialog_type, dialog_msg, immediate=immediate)
     distributor_instance.add_event_for_client(distributor_to_send_to, dialog_type, dialog_msg, immediate)
 
     if dialog_msg:
@@ -156,28 +155,10 @@ def push_speed(self, speed, source=GameSpeedChangeSource.GAMEPLAY, validity_chec
 
     return None
 
-from graph_algos import topological_sort
 import distributor.system
-import objects.base_object
-from situations.base_situation import  BaseSituation
-def _add_ops_for_client_connect(self, client):
-    ts4mp_log("client distributors", str(client.id), force=True)
-    node_gen = client.get_objects_in_view_gen()
-    parents_gen_fn = lambda obj: obj.get_create_after_objs()
-    create_order = topological_sort(node_gen, parents_gen_fn)
-    for obj in create_order:
-        if not getattr(obj, 'visible_to_client', True):
-            ts4mp_log("visible_to_client", "{} is not visible to client.".format(obj))
-            continue
-        create_op = obj.get_create_op()
-        if create_op is not None:
-            self.journal.add(obj, create_op)
-
-
 from ts4mp.configs.server_config import MULTIPLAYER_MOD_ENABLED
 
 if MULTIPLAYER_MOD_ENABLED:
-    distributor.system.Distributor._add_ops_for_client_connect =_add_ops_for_client_connect
     distributor.distributor_service.DistributorService.start = start
     server.client.Client.on_add = on_add
     server.client.Client.on_remove = on_remove

@@ -136,10 +136,8 @@ class SystemDistributor:
             return
 
         if isinstance(op, GenericProtocolBufferOp):
-            #ts4mp_log("ops", op.type_constant)
             if op.type_constant == Operation.SELECT_CAREER_UI:
-                #ts4mp_log("ops", dir(op.protocol_buffer))
-                #s4mp_log("ops", type(op.protocol_buffer))
+
                 if isinstance(op.protocol_buffer, CareerSelectionUI):
                     target_client_distributor = self.get_distributor_with_active_sim_matching_sim_id(obj.id)
                     target_client_distributor.add_op(obj, op)

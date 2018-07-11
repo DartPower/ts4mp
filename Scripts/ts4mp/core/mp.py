@@ -11,6 +11,7 @@ import ts4mp.core.overrides.mp_overrides as overrides
 import ts4mp.configs.server_config
 import ts4mp.utils.native.injector
 import objects.base_object
+from ts4mp.core.csn import show_server_host_attempt
 from ts4mp.configs.server_config import MULTIPLAYER_MOD_ENABLED
 
 if MULTIPLAYER_MOD_ENABLED:
@@ -28,6 +29,11 @@ if MULTIPLAYER_MOD_ENABLED:
         global server_instance
         is_client = client_arg
         if is_client:
+            #if there's already an existing client or server, it means the player is trying to reconnect
+            if client_instance is not None:
+                client_instance.kill()
+                client_instance = None
+
             client_instance = multiplayer_client.Client()
             client_instance.host = client_host
             client_instance.port = client_port
@@ -35,6 +41,11 @@ if MULTIPLAYER_MOD_ENABLED:
             client_instance.listen()
 
         else:
+            #if there's already an existing client or server, it means the player is trying to reconnect
+            if server_instance is not None:
+                server_instance.kill()
+                server_instance = None
+
             server_instance = multiplayer_server.Server()
             server_instance.heartbeat()
 
@@ -54,15 +65,16 @@ if MULTIPLAYER_MOD_ENABLED:
     @sims4.commands.Command('mp.host', command_type=sims4.commands.CommandType.Live)
     def host(_connection=None):
         setup(False)
+        show_server_host_attempt()
 
     @injector.inject(services, "stop_global_services")
     def stop_global_services(original):
-        if is_client:
-            global client_instance
+        global client_instance
+        if client_instance is not None:
             client_instance.kill()
 
-        else:
-            global server_instance
+        global server_instance
+        if server_instance is not None:
             server_instance.kill()
         original()
 

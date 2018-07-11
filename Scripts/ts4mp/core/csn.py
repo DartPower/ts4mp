@@ -31,6 +31,20 @@ def show_client_connect_on_server():
     notification = UiDialogNotification.TunableFactory().default(services.get_active_sim(), title=lambda **_: LocalizationHelperTuning.get_raw_text(title))
     notification.show_dialog(icon_override=(None, services.get_active_sim()))
 
+def show_server_host_attempt():
+    title = "Attempting to host the game."
+
+    notification = UiDialogNotification.TunableFactory().default(services.get_active_sim(), title=lambda **_: LocalizationHelperTuning.get_raw_text(title))
+    notification.show_dialog(icon_override=(None, services.get_active_sim()))
+
+
+
+def show_unsuccessful_server_host():
+    title = "Nobody connected to the host in time."
+
+    notification = UiDialogNotification.TunableFactory().default(services.get_active_sim(), title=lambda **_: LocalizationHelperTuning.get_raw_text(title))
+    notification.show_dialog(icon_override=(None, services.get_active_sim()))
+
 
 
 def show_notif(sim, text):
